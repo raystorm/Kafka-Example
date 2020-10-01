@@ -1,0 +1,25 @@
+apply plugin: 'maven-publish'
+
+task javadocZip(type: Zip, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+publishing {
+    publications {
+        binaryAndJavadoc(MavenPublication) {
+            artifactId config.artifactId
+            artifact javadocZip
+
+            binaryAndJavadoc(MavenPublication) {
+                artifactId config.artifactId
+                artifact war
+                pom.withXml {
+                    def root = asNode()
+                    root.appendNode('name', 'Kafka Failover and Switchback Example')
+                    root.appendNode('description', 'Kafka Example for Cluster Failover and SwitchBack')
+                }
+            }
+        }
+    }
+}

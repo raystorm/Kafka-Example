@@ -1,0 +1,31 @@
+apply plugin: "jacoco"
+
+jacocoTestReport {
+  group = "Reporting"
+  description = "Generate Jacoco coverage reports after running tests."
+  additionalSourceDirs = files(sourceSets.main.allJava.srcDirs)
+
+  reports {
+    xml.enabled true
+    //xml.destination "${buildDir}/jacocoXML"
+
+    html.enabled false
+    //html.destination "${buildDir}/jacocoHTML"
+    
+    csv.enabled false
+  }
+
+}
+
+
+gradle.projectsEvaluated {
+  // include src from all dependent projects (compile dependency) in JaCoCo test report
+  jacocoTestReport {
+  // get all projects we have a (compile) dependency on
+    def projs = configurations.compile.getAllDependencies().withType(ProjectDependency).collect{it.getDependencyProject()}
+    projs.each {
+      additionalSourceDirs files(it.sourceSets.main.java.srcDirs)
+      additionalClassDirs files(it.sourceSets.main.output)
+    }
+  }
+}

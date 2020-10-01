@@ -1,0 +1,17 @@
+import groovy.swing.SwingBuilder
+
+// assign properties to the config
+def configFile = file("$rootDir/gradle/config/buildConfig.groovy")
+def env = project.hasProperty('env') ? project.getProperty('env') : 'dev'
+logger.quiet "Loading configuration for environment '$env'."
+def parsedConfig = new ConfigSlurper(env).parse(configFile.toURL())
+
+allprojects
+{
+   // assign configurations to config property
+   ext.config = parsedConfig
+
+   if (project.hasProperty('artifactId'))
+   { ext.config.artifactId = "${artifactId}" }
+}
+

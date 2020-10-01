@@ -1,0 +1,33 @@
+spring:
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers}
+    listener:
+      #add topics after start
+      missing-topics-fatal: false
+    properties:
+      security:
+        #protocol: SASL_PLAINTEXT
+        protocol: PLAINTEXT
+      primary-servers: ${spring.embedded.kafka.brokers}
+      secondary-servers: ${spring.embedded.kafka.brokers_secondary}
+      bootstrapServersSupplier: com.github.raystorm.Kafkaexample.config.KafkaSwitchClusterTestHelper
+      #30 seconds in Milliseconds
+      switchBackTimer: 30000
+    bootstrapServersSupplier: com.github.raystorm.Kafkaexample.config.KafkaSwitchCluster
+
+    consumer:
+      properties:
+        spring:
+          json:
+            trusted:
+              packages: com.github.raystorm.commons.messaging
+      #bootstrap-servers: ${spring.embedded.kafka.brokers}
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+    producer:
+      #bootstrap-servers: ${spring.embedded.kafka.brokers}
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  profiles:
+    active: inmemory,kafka-test

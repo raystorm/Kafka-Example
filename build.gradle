@@ -1,0 +1,133 @@
+import groovy.xml.XmlUtil
+
+buildscript
+{
+   apply from: "$rootDir/gradle/envConfig.gradle"
+
+    ext { springBootVersion = '2.3.4.RELEASE' }
+    repositories
+    {
+        mavenLocal()
+        mavenCentral()
+    }
+
+    dependencies
+    {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+        classpath "org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:${sonarqubePluginVersion}"
+    }
+}
+
+
+repositories
+{
+   mavenLocal()
+   mavenCentral()
+}
+
+
+apply plugin: 'java'
+apply plugin: 'maven'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+apply plugin: 'war'
+apply from: "$rootDir/gradle/jacoco.gradle"
+apply from: "$rootDir/gradle/publishMaven.gradle"
+
+
+group = 'com.github.raystorm'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = 1.8
+
+configurations.all
+{
+   exclude module: 'spring-boot-starter-logging'
+   resolutionStrategy
+   {
+       force "org.apache.kafka:kafka-clients:${kafkaVersion}"
+       force 'org.webjars:swagger-ui:3.25.0'
+       //force 'org.yaml:snakeyaml:1.26'
+       //force 'org.dom4j:dom4j:2.1.3'
+       //force 'org.apache.tomcat.embed:tomcat-embed-core:9.0.37'
+       //force 'org.bouncycastle:bcprov-jdk15on:1.64'
+       //force 'org.eclipse.jetty:jetty-server:9.4.30.v20200611'
+       //force 'org.eclipse.jetty:jetty-runner:9.4.30.v20200611'
+       //force 'org.springframework:spring-web:5.2.9.RELEASE'
+   }
+}
+
+dependencies
+{
+    compile('org.springframework.boot:spring-boot-starter-web')
+    {
+       exclude group: 'com.fasterxml.jackson.core', module:'jackson-databind'
+       exclude group: 'com.fasterxml.jackson.datatype', module: 'jackson-datatype-jdk8'
+       exclude group: 'com.fasterxml.jackson.datatype', module: 'jackson-datatype-jsr310'
+       exclude group: 'com.fasterxml.jackson.module', module: 'jackson-module-parameter-names'
+       exclude group: 'org.apache.kafka' , module: 'kafka-clients'
+    }
+
+    compile("com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}")
+    compile("com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}")
+    compile("com.fasterxml.jackson.core:jackson-core:${jacksonVersion}")
+    compile("com.fasterxml.jackson.module:jackson-module-parameter-names:${jacksonVersion}")
+
+    compile("org.springframework.boot:spring-boot-starter-log4j2")
+
+    compile("org.springframework.boot:spring-boot-starter-aop")
+
+    compile("org.springframework.kafka:spring-kafka:2.5.6.RELEASE")
+    compile("org.apache.kafka:kafka-streams:${kafkaVersion}")
+    { exclude group: 'org.apache.kafka' , module: 'kafka-clients' }
+    compile("org.apache.kafka:kafka-clients:${kafkaVersion}")
+
+    testCompile('org.springframework.kafka:spring-kafka-test')
+
+    compile "org.springframework.cloud:spring-cloud-spring-service-connector:${springCloudConnectorVersion}"
+    compile "org.springframework.cloud:spring-cloud-cloudfoundry-connector:${springCloudConnectorVersion}"
+
+    testCompile("com.github.tomakehurst:wiremock:${wiremockVersion}")
+    {
+       //exclude group: 'org.eclipse.jetty', module: 'jetty-server'
+       //exclude group: 'org.eclipse.jetty', module: 'jetty-runner'
+    }
+    compile "org.apache.commons:commons-lang3"
+
+    //websocket
+    compile("org.springframework.boot:spring-boot-starter-websocket")
+
+    // cache
+    compile 'org.springframework:spring-context'
+    compile 'org.springframework:spring-context-support'
+
+    compile group: 'xerces' , name: 'xercesImpl', version: '2.12.0'
+
+    compileOnly "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+
+    testCompileOnly "org.projectlombok:lombok:${lombokVersion}"
+    testAnnotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+
+    testCompile('org.springframework.boot:spring-boot-starter-test')
+    testCompile('org.springframework.security:spring-security-test')
+    
+    testCompile('org.powermock:powermock-api-mockito2:2.0.4')
+    testCompile('org.powermock:powermock-module-junit4:2.0.4')
+
+    // cucumber
+    testCompile "io.cucumber:cucumber-java:${cucumberVersion}"
+    testCompile "io.cucumber:cucumber-junit:${cucumberVersion}"
+    testCompile "io.cucumber:cucumber-spring:${cucumberVersion}"
+
+}
+
+test
+{
+   useJUnitPlatform()
+   maxParallelForks = 1
+   forkEvery = 0
+
+   testLogging { exceptionFormat = 'full' }
+}

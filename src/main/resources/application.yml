@@ -1,0 +1,47 @@
+spring:
+  kafka:
+    properties:
+      sasl:
+        kerberos:
+          service:
+            name: kafka
+      primary-servers: <BootstrapServerList1>
+      secondary-servers: <BootstrapServerList2>
+      bootstrapServersSupplier: com.github.raystorm.Kafkaexample.config.KafkaSwitchCluster
+      #1 hour in Milliseconds
+      switchBackTimer: 3600000
+      security:
+        protocol: SASL_PLAINTEXT
+      retry:
+        backoff:
+          ms: 200
+      reconnect:
+        backoff:
+          ms: 100
+          max:
+            #wait up to 1 minute between retries
+            ms: 60000
+    listener:
+      #TODO: 30 seconds for test, use real value
+      idle-event-interval: 30000
+    consumer:
+      properties:
+        spring:
+          json:
+            trusted:
+              packages: com.github.raystorm.commons.messaging
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  profiles:
+    active: inmemory,kafka-lle
+  jackson:
+    deserialization:
+      FAIL_ON_UNKNOWN_PROPERTIES: true
+
+server:
+  servlet:
+    contextPath: /exe/v2

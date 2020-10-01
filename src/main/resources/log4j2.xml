@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="INFO">
+    <Properties>
+        <Property name="log-path">logs/sorting-hat-execution</Property>
+        <Property name="log-pattern">
+            %p %X{vcap_request_id} %X{requestId} %X{user} %d{yyyy-MM-dd HH:mm:ss.SSS} - %C{1.} %L %message %xThrowable{separator(|)} %n
+        </Property>
+    </Properties>
+    <Appenders>
+        <Console name="Console-Appender" target="SYSTEM_OUT">
+            <PatternLayout pattern="${log-pattern}"/>
+        </Console>
+        <RollingFile name="App-File-Appender" fileName="${log-path}/execution_app_log.log"
+                     filePattern="${log-path}/execution_app_log-%d{yyyy-MM-dd}.log">
+            <PatternLayout pattern="${log-pattern}"/>
+                <Policies>
+                    <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                </Policies>
+        </RollingFile>
+
+        <RollingFile name="SpringBoot-File-Appender" fileName="${log-path}/springframework_log.log"
+                     filePattern="${log-path}/springframework_log-%d{yyyy-MM-dd}.log" >
+            <PatternLayout pattern="${log-pattern}" />
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+            </Policies>
+        </RollingFile>
+    </Appenders>
+    <Loggers>
+        <Logger name="org.springframework" level="info" >
+            <AppenderRef ref="Console-Appender"/>
+        </Logger>
+        <Logger name="com.github.raystorm" level="info">
+            <AppenderRef ref="Console-Appender"/>
+         </Logger>
+        <Root level="info">
+            <AppenderRef ref="Console-Appender"/>
+        </Root>
+    </Loggers>
+</Configuration>
