@@ -27,7 +27,6 @@ import org.springframework.web.context.WebApplicationContext;
 
 /**
  *  Error Handler to Detect Broker down on Send.
- *  @author tbus8
  */
 @Slf4j
 @Component

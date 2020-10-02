@@ -11,8 +11,6 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
  *
  *  @param <K> Key
  *  @param <V> Value
- *
- *  @author tbus8
  */
 public class BootStrapExposerProducerFactory<K, V>
        extends DefaultKafkaProducerFactory<K, V>

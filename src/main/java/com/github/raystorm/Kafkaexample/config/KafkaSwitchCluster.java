@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 
 /**
  *  Provides Rochelle / Hudson Cluseter Configuration Toggle for Kafka
- *  @author tbus8
  */
 @Slf4j
 //@Component

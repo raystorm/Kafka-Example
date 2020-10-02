@@ -13,7 +13,6 @@ import org.springframework.kafka.core.KafkaTemplate;
 
 /**
  *  Post Processing Bean to ensure {@link KafkaSwitchCluster} is wired in properly
- *  @author tbus8
  */
 @Slf4j
 @Configuration
