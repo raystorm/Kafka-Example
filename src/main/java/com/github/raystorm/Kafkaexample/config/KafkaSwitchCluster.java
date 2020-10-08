@@ -1,6 +1,9 @@
 package com.github.raystorm.Kafkaexample.config;
 
 import lombok.extern.slf4j.Slf4j;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.core.ABSwitchCluster;
@@ -8,27 +11,28 @@ import org.springframework.stereotype.Service;
 
 
 /**
- *  Provides Rochelle / Hudson Cluseter Configuration Toggle for Kafka
+ *  Provides Primary / Secondary Cluster Configuration Toggle for Kafka
  */
-@Slf4j
-//@Component
 @Service
-@Profile({"kafka-switch-test","kafka-lle","kafka-prod"})
+@Profile({"kafka-lle","kafka-prod"})
 public class KafkaSwitchCluster extends ABSwitchCluster
 {
-   public String Rochelle;
+   private static final Logger log = 
+		   LoggerFactory.getLogger(KafkaSwitchCluster.class);
+   
+   public String Primary;
 
-   public String Hudson;
+   public String Secondary;
 
    public KafkaSwitchCluster(@Value("${spring.kafka.properties.primary-servers}")
-                             String Rochelle,
+                             String Primary,
                              @Value("${spring.kafka.properties.secondary-servers}")
-                             String Hudson)
+                             String Secondary)
    {
-      super(Rochelle, Hudson);
+      super(Primary, Secondary);
 
-      this.Rochelle = Rochelle;
-      this.Hudson = Hudson;
+      this.Primary = Primary;
+      this.Secondary = Secondary;
 
       log.info("Starting KafkaSwitchCluster");
    }
@@ -42,5 +46,5 @@ public class KafkaSwitchCluster extends ABSwitchCluster
     *  @see ABSwitchCluster#get()
     */
    @Override
-   public String get() { return isPrimary() ? Rochelle : Hudson; }
+   public String get() { return isPrimary() ? Primary : Secondary; }
 }

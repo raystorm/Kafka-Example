@@ -2,7 +2,6 @@ package com.github.raystorm.Kafkaexample.config;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
@@ -11,6 +10,8 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.BrokerNotAvailableException;
 import org.apache.kafka.common.errors.DisconnectException;
 import org.apache.kafka.common.errors.TimeoutException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
@@ -28,11 +29,13 @@ import org.springframework.web.context.WebApplicationContext;
 /**
  *  Error Handler to Detect Broker down on Send.
  */
-@Slf4j
 @Component
 @Profile({"kafka-switch-test", "kafka-lle", "kafka-prod"})
 public class KafkaProducerErrorHandler implements ProducerListener<Object, Object>
 {
+   private static final Logger log = 
+		   LoggerFactory.getLogger(KafkaProducerErrorHandler.class);	
+	
    private  static final String error_UID = "da2ba106-d343-43f3-84a9-37f8e769a3b5";
 
    private static final String event_UID = "17111a0d-34f5-4d7f-82ff-ad7e85a41f03";
@@ -59,21 +62,9 @@ public class KafkaProducerErrorHandler implements ProducerListener<Object, Objec
    @Value("${spring.kafka.properties.secondary-servers}")
    String secondaryServersList;
 
-   /**
-    *  Unable to use {@link Autowired} due to circular dependency
-    *  with {@link KafkaPostProcessor}
-    *  @return
-    */
-   public DefaultKafkaProducerFactory getDefaultKafkaProducerFactory()
-   { return context.getBean(DefaultKafkaProducerFactory.class); }
+   public ProducerFactory getProducerFactory()
+   { return context.getBean(ProducerFactory.class); }
 
-   /**
-    *  Unable to use {@link Autowired} due to circular dependency
-    *  with {@link KafkaPostProcessor}
-    *  @return
-    */
-   public DefaultKafkaConsumerFactory getDefaultKafkaConsumerFactory()
-   { return context.getBean(DefaultKafkaConsumerFactory.class); }
 
    public AdminClient getAdminClient(String bootstrapServers)
    {
@@ -81,25 +72,6 @@ public class KafkaProducerErrorHandler implements ProducerListener<Object, Objec
          new HashMap<>(kafkaAdmin.getConfigurationProperties());
 
       config.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-
-      return KafkaAdminClient.create(config);
-   }
-
-   public AdminClient primaryAdminClient()
-   {
-      Map<String, Object> config =
-              new HashMap<>(kafkaAdmin.getConfigurationProperties());
-
-      config.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, primaryServersList);
-
-      return KafkaAdminClient.create(config);
-   }
-
-   public AdminClient secondaryAdminClient()
-   {
-      Map<String, Object> config = kafkaAdmin.getConfigurationProperties();
-
-      config.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, secondaryServersList);
 
       return KafkaAdminClient.create(config);
    }
@@ -121,18 +93,8 @@ public class KafkaProducerErrorHandler implements ProducerListener<Object, Objec
    {
       //TODO: make this whole method automic
       // - don't send too many other messages while checking
-      /*
-      boolean switched = false;
-      if ( isPrimary != kafkaSwitchCluster.isPrimary() )
-      {
-         //if (isPrimary) { kafkaSwitchCluster.primary(); }
-         //else { kafkaSwitchCluster.secondary(); }
-         switchCluster();
-         switched = true;
-      }
-      */
-
-      //TODO: create an Admin Client that doesn't impact everything else
+      
+      //create an Admin Client that doesn't impact everything else
       try ( AdminClient client = getAdminClient(boostrapservers) )
       {
          //original gets topics
@@ -143,18 +105,7 @@ public class KafkaProducerErrorHandler implements ProducerListener<Object, Objec
          return true;
       }
       //assume down if caught
-      catch (InterruptedException | ExecutionException e) { return false; }
-      /*
-      finally
-      {
-         if (switched) //switch back.
-         {
-            //if (isPrimary) { kafkaSwitchCluster.secondary(); }
-            //else { kafkaSwitchCluster.primary(); }
-            switchCluster();
-         }
-      }
-      */
+      catch (InterruptedException | ExecutionException e) { return false; }      
    }
 
    /** Back-End Method to Actually Switch between the clusters */
@@ -164,6 +115,7 @@ public class KafkaProducerErrorHandler implements ProducerListener<Object, Objec
       if (kafkaSwitchCluster.isPrimary()) { kafkaSwitchCluster.secondary(); }
       else { kafkaSwitchCluster.primary(); }
       registry.start();
+      getProducerFactory().reset();
    }
 
    /** Back-End Method for Handling the Consumer Event based switching */
@@ -182,7 +134,7 @@ public class KafkaProducerErrorHandler implements ProducerListener<Object, Objec
       synchronized (lastSwitchTime)
       {
          //if Brokers are up, do nothing.
-         if ( areBrokersUp() ) { return; }
+         if ( !force && areBrokersUp() ) { return; }
 
          Calendar switchable = Calendar.getInstance();
          switchable.setTime(lastSwitchTime);

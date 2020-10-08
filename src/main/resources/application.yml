@@ -2,16 +2,16 @@ spring:
   kafka:
     properties:
       sasl:
-        kerberos:
-          service:
-            name: kafka
+        mechanism: PLAIN
+        jaas:
+          config: org.apache.kafka.common.security.plain.PlainLoginModule
       primary-servers: <BootstrapServerList1>
       secondary-servers: <BootstrapServerList2>
       bootstrapServersSupplier: com.github.raystorm.Kafkaexample.config.KafkaSwitchCluster
       #1 hour in Milliseconds
       switchBackTimer: 3600000
       security:
-        protocol: SASL_PLAINTEXT
+        protocol: PLAINTEXT
       retry:
         backoff:
           ms: 200
@@ -26,6 +26,10 @@ spring:
       idle-event-interval: 30000
     consumer:
       properties:
+        sasl:
+          mechanism: PLAIN
+          jaas:
+            config: org.apache.kafka.common.security.plain.PlainLoginModule
         spring:
           json:
             trusted:
@@ -34,6 +38,10 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
     producer:
+      sasl:
+        mechanism: PLAIN
+        jaas:
+          config: org.apache.kafka.common.security.plain.PlainLoginModule
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
   profiles:

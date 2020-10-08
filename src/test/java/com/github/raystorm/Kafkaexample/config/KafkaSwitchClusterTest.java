@@ -1,19 +1,17 @@
 package com.github.raystorm.Kafkaexample.config;
 
 
-import com.github.raystorm.Kafkaexample.config.util.KafkaConsumerGroupRandomizer;
-import kafka.common.KafkaException;
-import kafka.server.KafkaServer;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.jupiter.api.Order;
 import org.junit.runner.RunWith;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,6 +19,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.Ordered;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.kafka.core.*;
@@ -31,7 +30,6 @@ import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.kafka.test.core.BrokerAddress;
-import org.springframework.kafka.test.rule.EmbeddedKafkaRule;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
@@ -54,38 +52,43 @@ import static org.junit.Assert.fail;
 
 
 /**
- *  Tests for Publishing Allocation Results to Kafka
+ *  Tests for Switching Kafka Clusters
  */
-@Slf4j
 @RunWith(SpringRunner.class)
 @SpringBootTest()
-@ActiveProfiles({"inmemory", "test", "kafka-switch-test"})
+@ActiveProfiles({"inmemory", "test", "kafka-switch-test", "kafka-test"})
 @WebAppConfiguration
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-@EmbeddedKafka(bootstrapServersProperty = "spring.embedded.kafka.brokers_secondary")
+@EmbeddedKafka(topics = "com.github.raystorm.test.cluster",
+               bootstrapServersProperty = "spring.kafka.properties.primary-servers")
 public class KafkaSwitchClusterTest
 {
+   private static final Logger log = 
+         LoggerFactory.getLogger(KafkaSwitchClusterTest.class);
+   
    private static final String topic = "com.github.raystorm.test.cluster";
-
-   @ClassRule
-   public static final EmbeddedKafkaRule embeddedKafkaRule =
-           new EmbeddedKafkaRule(1, true, topic);
-
-   @ClassRule
-   public static final EmbeddedKafkaRule embeddedKafkaRule_secondary =
-           new EmbeddedKafkaRule(1, true, topic)
-                   .brokerProperty("bootstrapServersProperty",
-                           "spring.embedded.kafka.brokers_secondary");
 
    @TestConfiguration
    static class testConfig
    {
+      @Bean(name = "secondaryBroker")
+      @Order(value = Ordered.HIGHEST_PRECEDENCE)
+      EmbeddedKafkaBroker secondaryBroker()
+      {
+         log.debug("building Secondary Broker.");
+         return new EmbeddedKafkaBroker(1, true, topic)
+                 //.brokerListProperty("spring.kafka.properties.secondary-servers");
+                 .brokerListProperty("spring.embedded.kafka.brokers_secondary");
+      }
+
       @Bean
       //@Primary
       public ProducerFactory<String, String> kafkaProducerFactory(ApplicationContext ctx)
       {
+         EmbeddedKafkaBroker broker = ctx.getBean("embeddedKafka",
+                                                  EmbeddedKafkaBroker.class);
          Map<String, Object> configProps =
-                 KafkaTestUtils.producerProps(embeddedKafkaRule.getEmbeddedKafka());
+                 KafkaTestUtils.producerProps(broker);
 
          System.out.println("Producer Configs from Broker");
          for(Map.Entry<String, Object> config : configProps.entrySet())
@@ -96,9 +99,9 @@ public class KafkaSwitchClusterTest
          }
 
          BootStrapExposerProducerFactory<String, String> dpf =
-                 new BootStrapExposerProducerFactory<>(configProps,
-                         new StringSerializer(),
-                         new JsonSerializer());
+                  new BootStrapExposerProducerFactory<>(configProps,
+                                                        new StringSerializer(),
+                                                        new JsonSerializer());
          dpf.setApplicationContext(ctx);
 
          return dpf;
@@ -110,17 +113,6 @@ public class KafkaSwitchClusterTest
       {
          System.out.println("Creating Test KafkaTemplate.");
          return new KafkaTemplate<>(kafkaProducerFactory(ctx), true);
-      }
-
-      @Bean
-      public KafkaSHProperties kafkaSHProperties(KafkaConsumerGroupRandomizer randomizer)
-      {
-         return new KafkaSHProperties(topic,
-                 "com.github.raystorm.test.cache-cg."+randomizer.generate(),
-                 "com.github.raystorm.test.stream-v1.0.1-a",
-                 "com.github.raystorm.test.",
-                 ".alloc.request",
-                 ".alloc.output");
       }
    }
 
@@ -134,11 +126,11 @@ public class KafkaSwitchClusterTest
    @Autowired
    KafkaSwitchCluster kafkaSwitchCluster;
 
-   //@Autowired
+   @Autowired
    private EmbeddedKafkaBroker embeddedKafka;
 
    @Autowired
-   private EmbeddedKafkaBroker embeddedKafka_secondary;
+   private EmbeddedKafkaBroker secondaryBroker;
 
    @Autowired
    private KafkaProducerErrorHandler kafkaProducerErrorHandler;
@@ -162,12 +154,10 @@ public class KafkaSwitchClusterTest
    public String Hudson;
 
    /* read sent messages  */
-   static BlockingQueue<String> records; //= new LinkedBlockingQueue<>();
-
-   private String topic1;
+   static BlockingQueue<String> records;
 
    @KafkaListener(topics = { topic },
-           groupId = "com.github.raystorm.configuration.config.KafkaSwitchClusterTest")
+                  groupId = "com.github.raystorm.configuration.config.KafkaSwitchClusterTest")
    public void listen(String msg)
    {
       System.out.println("Kafka Listener: " + msg);
@@ -192,41 +182,34 @@ public class KafkaSwitchClusterTest
       //create/reset a thread safe queue to store the received message
       records = new LinkedBlockingQueue<>();
 
-      embeddedKafka = embeddedKafkaRule.getEmbeddedKafka();
+      //embeddedKafka = embeddedKafkaRule.getEmbeddedKafka();
 
       assertThat(kafkaProducerErrorHandler.areBrokersUp(), is(true));
 
-      topic1 = properties.getCacheTopic();
-      assertThat(topic1, is(topic));
-
-      try { embeddedKafka.addTopics(topic1); }
-      catch (KafkaException Ignored) { }
-
-      assertThat(embeddedKafka.getTopics(), hasItem(topic1));
-
+      assertThat(embeddedKafka.getTopics(), hasItem(topic));
       assertThat(embeddedKafka.getPartitionsPerTopic(), is(2));
 
       //Dumps Embedded Kafka configs to logs
       System.out.println("embeddedKafka Config: ");
       Map<Object, Object> kprops = (Map)
-              embeddedKafka.getKafkaServer(0).config().props();
+         embeddedKafka.getKafkaServer(0).config().props();
       for(Map.Entry<Object, Object> prop : kprops.entrySet())
       {
          System.out.println( "   " + prop.getKey().toString()
-                 + " = " + prop.getValue().toString());
+                           + " = " + prop.getValue().toString());
       }
       for(BrokerAddress ba : embeddedKafka.getBrokerAddresses())
       { System.out.println("   BrokerAddress = " + ba.toString()); }
 
       DefaultKafkaProducerFactory dpf = (DefaultKafkaProducerFactory)
-              kafkaTemplate.getProducerFactory();
+             kafkaTemplate.getProducerFactory();
       //Dumps Kafka Template configs to logs
       System.out.println("KafkaTemplate Config: ");
       Map<String, Object> props = dpf.getConfigurationProperties();
       for(Map.Entry<String, Object> prop : props.entrySet())
       {
          System.out.println( "   " + prop.getKey()
-                 + " = " + prop.getValue().toString());
+                           + " = " + prop.getValue().toString());
       }
 
       //ensure tests start with Primary
@@ -246,36 +229,29 @@ public class KafkaSwitchClusterTest
 
       // set up the Kafka consumer properties
       Map<String, Object> consumerProperties =
-              KafkaTestUtils.consumerProps(properties.getCacheConsumptionGroup(),
-                      "false", embeddedKafka);
+         KafkaTestUtils.consumerProps(properties.getCacheConsumptionGroup(),
+                                      "false", embeddedKafka);
 
       // create a Kafka consumer factory
       DefaultKafkaConsumerFactory<String, String> consumerFactory =
               new DefaultKafkaConsumerFactory<>(consumerProperties,
-                      new StringDeserializer(),
-                      new JsonDeserializer<String>());
+                                                new StringDeserializer(),
+                                                new JsonDeserializer<String>());
 
       // set the topic that needs to be consumed
-      ContainerProperties containerProperties = new ContainerProperties(topic1);
+      ContainerProperties containerProperties = new ContainerProperties(topic);
 
       Set<String> topics = embeddedKafka.getTopics();
-      assertThat(topics.size(),is(1) );
-      assertThat(topics,hasItem(topic1) );
+      assertThat(topics.size(), is(1) );
+      assertThat(topics,        hasItem(topic) );
 
       Consumer<String, String> consumer =
               consumerFactory.createConsumer(properties.getCacheConsumptionGroup(),
-                      properties.getEnvironmentPrefix(),
-                      properties.getOutputTopicSuffix());
+                                             properties.getEnvironmentPrefix(),
+                                             properties.getOutputTopicSuffix());
 
       Set<String> ctops = consumer.listTopics().keySet();
-      assertThat(ctops, hasItem(topic1));
-
-//      send(am);
-//
-//      //get the first one
-//      String msg = records.poll(30, TimeUnit.SECONDS);
-//      assertThat(msg, notNullValue());
-//      assertThat(msg, is(am));
+      assertThat(ctops, hasItem(topic));
 
       synchronized(lock)
       { lock.wait(Duration.ofSeconds(10).toMillis()); }
@@ -289,7 +265,7 @@ public class KafkaSwitchClusterTest
    public void send(String cm, boolean isRetry)
    {
       ListenableFuture<SendResult<String, String>> sent =
-              kafkaTemplate.send(topic1, UUID.randomUUID().toString(), cm);
+              kafkaTemplate.send(topic, UUID.randomUUID().toString(), cm);
       kafkaTemplate.flush();
 
       System.out.println("Sending Cache Message ["+cm+"]");
@@ -311,7 +287,7 @@ public class KafkaSwitchClusterTest
    public void send_expectFailure(String cm)
    {
       ListenableFuture<SendResult<String, String>> sent =
-              kafkaTemplate.send(topic1, UUID.randomUUID().toString(), cm);
+              kafkaTemplate.send(topic, UUID.randomUUID().toString(), cm);
       kafkaTemplate.flush();
 
       try
@@ -320,23 +296,27 @@ public class KafkaSwitchClusterTest
          System.out.println("Cache Message Sent successful.");
       }
       catch(Exception ex)
-      {
-         log.warn("Encountered expected Error Sending Kafka Message.", ex);
-      }
+      { log.warn("Encountered expected Error Sending Kafka Message.", ex); }
    }
 
    public void shutdownBroker_primary()
    {
+      /*
       for(KafkaServer ks : embeddedKafka.getKafkaServers()) { ks.shutdown(); }
-      for(KafkaServer ks : embeddedKafka.getKafkaServers()) { ks.awaitShutdown(); }
+      for(KafkaServer ks : embeddedKafka.getKafkaServers())
+      { ks.awaitShutdown(); }
+      */
+      embeddedKafka.destroy();
    }
 
    public void shutdownBroker_secondary()
    {
-      for(KafkaServer ks : embeddedKafka_secondary.getKafkaServers())
-      { ks.shutdown(); }
-      for(KafkaServer ks : embeddedKafka_secondary.getKafkaServers())
+      /*
+      for(KafkaServer ks : secondaryBroker.getKafkaServers()) { ks.shutdown(); }
+      for(KafkaServer ks : secondaryBroker.getKafkaServers())
       { ks.awaitShutdown(); }
+      */
+      secondaryBroker.destroy();
    }
 
    @After
@@ -356,7 +336,7 @@ public class KafkaSwitchClusterTest
       assertThat(kafkaTemplate.getProducerFactory(),
               instanceOf(BootStrapExposerProducerFactory.class));
 
-      ABSwitchCluster ktSwitch = (ABSwitchCluster)
+      KafkaSwitchCluster ktSwitch = (KafkaSwitchCluster)
               ((BootStrapExposerProducerFactory)
                       kafkaTemplate.getProducerFactory()).getBootStrapSupplier();
 

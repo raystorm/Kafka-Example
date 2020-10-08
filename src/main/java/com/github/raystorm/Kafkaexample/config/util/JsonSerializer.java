@@ -12,27 +12,27 @@ import java.util.Map;
  */
 public class JsonSerializer<T> implements Serializer<T>
 {
-    private ObjectMapper mapper = new ObjectMapper();
+   private ObjectMapper mapper = new ObjectMapper();
 
-    @Override
-    public void configure(Map<String, ?> configs, boolean isKey) { }
+   @Override
+   public void configure(Map<String, ?> configs, boolean isKey) { }
 
-    /**
-     * Simple wrapper for {@link ObjectMapper#writeValueAsBytes(Object)}
-     * @param topic JSON to serialize
-     * @param data Object to be Serialized
-     * @return byte array serielized representation of the object
-     * @see ObjectMapper#writeValueAsBytes(Object)
-     */
-    @Override
-    public byte[] serialize(String topic, T data)
-    {
-        try { return mapper.writeValueAsBytes(data); }
-        catch (JsonProcessingException e)
-        {  //TODO: log and duck
-           e.printStackTrace();
-           throw new RuntimeException(e);
-        }
+   /**
+    * Simple wrapper for {@link ObjectMapper#writeValueAsBytes(Object)}
+    * @param topic JSON to serialize
+    * @param data Object to be Serialized
+    * @return byte array serielized representation of the object
+    * @see ObjectMapper#writeValueAsBytes(Object)
+    */
+   @Override
+   public byte[] serialize(String topic, T data)
+   {
+      try { return mapper.writeValueAsBytes(data); }
+      catch (JsonProcessingException e)
+      {  //TODO: log and duck
+         e.printStackTrace();
+         throw new RuntimeException(e);
+      }
     }
 
     @Override

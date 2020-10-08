@@ -24,17 +24,11 @@ public class BootStrapExposerProducerFactory<K, V>
    public BootStrapExposerProducerFactory(Map configs,
                                           Serializer<K> keySerializer,
                                           Serializer<V> ValueSerializer)
-   {
-      super(configs, keySerializer, ValueSerializer);
-      this.supplier = supplier;
-   }
+   { super(configs, keySerializer, ValueSerializer); }
 
    @Override
    public void setBootstrapServersSupplier(Supplier<String> supplier)
-   {
-      super.setBootstrapServersSupplier(supplier);
-      this.supplier = supplier;
-   }
+   { super.setBootstrapServersSupplier(supplier); }
 
-   public Supplier<String> getBootStrapSupplier() { return supplier; };
+   public Supplier<String> getBootStrapSupplier() { return supplier; }
 }
