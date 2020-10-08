@@ -18,9 +18,7 @@ public class JsonDeserializer<T> implements Deserializer<T>
 
     public JsonDeserializer() { }
 
-    public JsonDeserializer(Class<T> type){
-        this.type = type;
-    }
+    public JsonDeserializer(Class<T> type) { this.type = type; }
 
 
     @Override
@@ -37,13 +35,12 @@ public class JsonDeserializer<T> implements Deserializer<T>
     @Override
     public T deserialize(String topic, byte[] data)
     {
-        try
-        { return mapper.readValue(new String(data), type); }
-        catch (IOException e)
-        {
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        }
+       try { return mapper.readValue(new String(data), type); }
+       catch (IOException e)
+       {
+          e.printStackTrace();
+          throw new RuntimeException(e);
+       }
     }
 
     @Override

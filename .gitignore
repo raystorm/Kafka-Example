@@ -4,6 +4,7 @@ logs/
 /temp/
 tmp/
 /jmeter_test/results
+bin/
 
 ### STS ###
 .apt_generated
