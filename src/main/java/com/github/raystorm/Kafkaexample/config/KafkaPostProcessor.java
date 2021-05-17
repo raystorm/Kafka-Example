@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.core.KafkaResourceFactory;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 
 /**
@@ -16,6 +17,7 @@ import org.springframework.kafka.core.KafkaTemplate;
  */
 @Configuration
 @Profile({"kafka-switch-test", "kafka-lle", "kafka-prod"})
+@EnableScheduling
 public class KafkaPostProcessor implements BeanPostProcessor
 {
    private static final Logger log = 
